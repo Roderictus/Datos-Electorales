@@ -15,8 +15,6 @@ library("htmlTable","scales", "broom", "tidyr", "maptools","rgdal","gsubfn", "fo
 #1.2.3 Presidente 2012 Sección
 #download.file("http://siceef.ine.mx/BD/Presidente2012Seccion.csv", "Presidente2012Seccion.csv")
 
-
-
 #####################################################################
 ####################Presidente 2012##################################
 #####################################################################
@@ -39,13 +37,15 @@ MunPres12 <-P2012Secc %>%
                 TOTAL_VOTOS = sum(TOTAL_VOTOS, na.rm = TRUE), LISTA_NOMINAL = sum(LISTA_NOMINAL, na.rm = TRUE), 
                 TOTAL_CASILLAS = sum(CASILLAS, na.rm = TRUE), MUNICIPIO = unique(MUNICIPIO), 
                 ID_MUNICIPIO_ELECTORAL = unique(ID_MUNICIPIO))
-##############################Porcentajes
+
+##############################Porcentajes##############################
 MunPres12 <- mutate(MunPres12, POR_NULOS = NUM_VOTOS_NULOS/TOTAL)
 #Unir con el nombre de los estados
 temp<-dplyr::select(P2012Secc, ID_ESTADO, CVUN, NOMBRE_ESTADO, MUNICIPIO, ID_MUNICIPIO)
 temp<- unique(temp[complete.cases(temp),])
-temp$MunMin <- tolower(x = temp$MUNICIPIO) #municipios en minúsculas, fuente datos electorales, 2446
 #####Nombres de los municipios de la base de datos de resultados electorales en minusculas
+temp$MunMin <- tolower(x = temp$MUNICIPIO) #municipios en minúsculas, fuente datos electorales, 2446
+
 ########################################################################
 #Shapefiles del Marco Geoestadístico del INEGI más reciente, Junio 2016
 ########################################################################
@@ -62,24 +62,53 @@ LINEGI <- tbl_df(MGEOINEGI@data)
 #la clave municipal utilizada por el Marco Geoestadístico
 LINEGI$MunMin <- tolower(LINEGI$NOM_MUN) #minusculas datos del INEGI, 2448
 #El nombre de los municipios de INEGI tiene acentos
-
-head(LINEGI$MunMin)
-
-iconv(LINEGI$MunMin,from="latin1",to="ASCII//TRANSLIT")
-
-
-
+LINEGI$MunMin<-iconv(LINEGI$MunMin,from="latin1",to="ASCII//TRANSLIT")
 #Unamos los municipios separando por estado
-A<-full_join(LINEGI, temp, by = "MunMin")
-A[A$CVE_ENT == "03",]
-temp[temp$ID_ESTADO ==3,]
-sum(table(temp$ID_ESTADO))
+#intentaré unir solo para los municipios que aparezcan en la lista del INEGI
+#left join primer término INEGI, el segundo grupo debe de estar contenido en el primero 
+colnames(temp)
 
+MunicipiosMapa<- data.frame()
+list <-LINEGI$CVE_ENT
 
+for ( i in 1:32) {
+      A2 <- dplyr::filter(temp, temp$ID_ESTADO == i )
+      B2 <- dplyr::filter(LINEGI, LINEGI$CVE_ENT== unique(LINEGI$CVE_ENT)[i])
+      print(unique(LINEGI$CVE_ENT)[i])
+      MunicipiosMapa<-rbind(MunicipiosMapa,left_join(B2,A2, by = "MunMin")) #INEGI a la izquierda
+}
 
+ClaveMun<-dplyr::select(MunicipiosMapa, CVE_ENT, CVE_MUN, NOM_MUN, CVUN)
+
+P2012Secc$CVUN <- str_c(str_pad(P2012Secc$ID_ESTADO, width = 2, "left", "0"),str_pad(P2012Secc$ID_MUNICIPIO, width = 3, "left", "0"))
+
+ClaveMun$ClaveINEGI <- str_c(str_pad(ClaveMun$CVE_ENT, width =2, "left", "0"), str_pad(ClaveMun$CVE_MUN, width = 3, "left", "0"))
+
+ClaveMun[ClaveMun$CVE_ENT == "03",]
+
+left_join(MunPres12,ClaveMun, by = "CVUN")
 ############################################
 #####Mapa con datos a nivel municipal
 ############################################
+area<- readShapePoly("./Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_municipales.shp")
+area.points<-fortify(area)
+area@data
+
+
+#muns = readOGR("map/mgm2013v6_2.shp", "mgm2013v6_2") #shape
+#states_df <- fortify(states)
+#bb <- bbox(as(extent(muns) , "SpatialPolygons" ) )
+#muns@data$id = as.numeric(muns@data$concat)
+
+
+
+muns@data$id = as.numeric(muns@data$concat)
+########meter acá la información de resultados electorales
+muns@data <- plyr::join(muns@data, MunPres12, by = "id")
+muns_df <- fortify(muns,region = "concat")
+muns_df <- plyr::join(muns_df, MunPres12, by="id")
+
+
 #muns = readOGR("map/mgm2013v6_2.shp", "mgm2013v6_2") #shape
 muns = readOGR("map/mgm2013v6_2.shp", "mgm2013v6_2", encoding = "UTF-8") #shape
 states <- readOGR("map/mge2013v6_2.shp", "mge2013v6_2")
@@ -91,31 +120,6 @@ muns@data$id = as.numeric(muns@data$concat)
 muns@data <- plyr::join(muns@data, MunPres12, by = "id")
 muns_df <- fortify(muns,region = "concat")
 
-
-#homologar los nombres de los municipios
-muns@data[muns@data$CVE_ENT == 3, ]
-sum(as.numeric(table(muns@data$CVE_ENT)))
-#Mapas de los marcos geoestadísticos más recientes
-
-#remover caractéres
-#empatar por proximidad
-unique(filter(temp, ID_ESTADO== 3))[complete.cases(unique(filter(temp, ID_ESTADO== 3))),]
-
-
-
-
-#####quitar acentos en el df de INEGI
-#######Transformar a mayúsculas
-#########hacer Merge por ID estatal y después nombre de municipio
-#####ID INEGI
-
-head(muns@data)
-toupper(muns@data$NOM_MUN)
-
-
-
-
-muns_df <- plyr::join(muns_df, MunPres12, by="id")
 ## Theme for maps
 theme_bare <-theme(axis.line=element_blank(),
                    axis.text.x=element_blank(),
@@ -129,10 +133,6 @@ theme_bare <-theme(axis.line=element_blank(),
                    panel.grid.minor=element_blank(),
                    plot.background=element_blank())
 
-muns@data[muns@data$CVE_ENT == "03",]
-order(-muns_df$POR_NULOS)
-
-muns_df
 MAPA <- ggplot()+
       geom_map(data = muns_df, map = muns_df, 
                aes(map_id = id, x = long, y = lat, group = group, fill= POR_NULOS),
