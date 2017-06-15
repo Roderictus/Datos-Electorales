@@ -1,19 +1,36 @@
 ####################################################################
 ##############################Carga de programas ###################
 ####################################################################
-library("readr", "dplyr","stringr", "downloader", "downloader", "rgeos", "ggplot2","viridis","raster", "htmltools")
-library("htmlTable","scales", "broom", "tidyr", "maptools","rgdal","gsubfn", "foreign")
+library("tidyverse")
+library("readr")
+library("dplyr")
+library("stringr")
+library("downloader")
+library("rgeos")
+library("ggplot2")
+library("viridis")
+library("raster")
+library("htmltools")
+library("htmlTable")
+library("scales")
+library("broom")
+library("tidyr")
+library("maptools")
+library("rgdal")
+library("gsubfn")
+library("foreign")
+
 #####################################################################
 #A.Descargar bases de datos, resultados a nivel Sección y casilla en .csv, 
 #####################################################################
 ###1.Datos electorales
 #datos de http://siceef.ine.mx/downloadDB.html
 ###1.1 Diputados Mayoria Relativa 2015###############################
-#download.file("http://siceef.ine.mx/BD/DiputadosMR2015Seccion.csv", "DiputadosMR2015Seccion.csv")
+download.file("http://siceef.ine.mx/BD/DiputadosMR2015Seccion.csv", "DiputadosMR2015Seccion.csv")
 #1.2.1 Presidente 2012 Casilla
-#download.file("http://siceef.ine.mx/BD/Presidente2012.csv", "Presidente2012Casilla.csv")
+download.file("http://siceef.ine.mx/BD/Presidente2012.csv", "Presidente2012Casilla.csv")
 #1.2.3 Presidente 2012 Sección
-#download.file("http://siceef.ine.mx/BD/Presidente2012Seccion.csv", "Presidente2012Seccion.csv")
+download.file("http://siceef.ine.mx/BD/Presidente2012Seccion.csv", "Presidente2012Seccion.csv")
 
 #####################################################################
 ####################Presidente 2012##################################
