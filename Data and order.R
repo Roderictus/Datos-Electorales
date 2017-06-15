@@ -19,7 +19,9 @@ library("maptools")
 library("rgdal")
 library("gsubfn")
 library("foreign")
-
+library("maptools")
+library("RColorBrewer")
+library("ggmap")
 #####################################################################
 #A.Descargar bases de datos, resultados a nivel Sección y casilla en .csv, 
 #####################################################################
@@ -62,13 +64,12 @@ temp<-dplyr::select(P2012Secc, ID_ESTADO, CVUN, NOMBRE_ESTADO, MUNICIPIO, ID_MUN
 temp<- unique(temp[complete.cases(temp),])
 #####Nombres de los municipios de la base de datos de resultados electorales en minusculas
 temp$MunMin <- tolower(x = temp$MUNICIPIO) #municipios en minúsculas, fuente datos electorales, 2446
-
 ########################################################################
 #Shapefiles del Marco Geoestadístico del INEGI más reciente, Junio 2016
 ########################################################################
 #D################Datos del marco geoestadístico más reciente 
-#download.file("http://internet.contenidos.inegi.org.mx/contenidos/Productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/marc_geo/702825217341_s.zip", "MarcoGeoJunioo2016.zip")
-#unzip("MarcoGeoJunioo2016.zip", exdir = "Marco Geoestadistico")
+download.file("http://internet.contenidos.inegi.org.mx/contenidos/Productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/marc_geo/702825217341_s.zip", "MarcoGeoJunioo2016.zip")
+unzip("MarcoGeoJunioo2016.zip", exdir = "Marco Geoestadistico")
 list.files("./Marco Geoestadistico/conjunto_de_datos/")
 MGEOINEGI<- readShapePoly("./Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_municipales.shp")
 LINEGI <- tbl_df(MGEOINEGI@data)
@@ -83,8 +84,6 @@ LINEGI$MunMin<-iconv(LINEGI$MunMin,from="latin1",to="ASCII//TRANSLIT")
 #Unamos los municipios separando por estado
 #intentaré unir solo para los municipios que aparezcan en la lista del INEGI
 #left join primer término INEGI, el segundo grupo debe de estar contenido en el primero 
-colnames(temp)
-
 MunicipiosMapa<- data.frame()
 list <-LINEGI$CVE_ENT
 
@@ -97,28 +96,51 @@ for ( i in 1:32) {
 
 ClaveMun<-dplyr::select(MunicipiosMapa, CVE_ENT, CVE_MUN, NOM_MUN, CVUN)
 
-P2012Secc$CVUN <- str_c(str_pad(P2012Secc$ID_ESTADO, width = 2, "left", "0"),str_pad(P2012Secc$ID_MUNICIPIO, width = 3, "left", "0"))
-
+#P2012Secc$CVUN <- str_c(str_pad(P2012Secc$ID_ESTADO, width = 2, "left", "0"),str_pad(P2012Secc$ID_MUNICIPIO, width = 3, "left", "0"))
 ClaveMun$ClaveINEGI <- str_c(str_pad(ClaveMun$CVE_ENT, width =2, "left", "0"), str_pad(ClaveMun$CVE_MUN, width = 3, "left", "0"))
+#Aqui vemos que ya tenemos forma de empatar los resultados del INEGI con los datos electorales, 
+#molesta decisión del INE no seguir con la clasificación del marcogeoestadístico nacional
+#Eso o hay algo que no entiendo
 
-ClaveMun[ClaveMun$CVE_ENT == "03",]
+#Tenemos NAs en ClaveMun$CVUN
+ClaveMun[is.na(ClaveMun$CVUN),]$CVUN<-ClaveMun[is.na(ClaveMun$CVUN),]$ClaveINEGI#69 casos, los llenamos con la clave INEGI
+#ya no hay nas!
 
-left_join(MunPres12,ClaveMun, by = "CVUN")
+
 ############################################
 #####Mapa con datos a nivel municipal
 ############################################
-area<- readShapePoly("./Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_municipales.shp")
+muns<- readOGR("./Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_municipales.shp", "areas_geoestadisticas_municipales")
+muns_df<-fortify(muns)
+
+states<-readOGR("Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_estatales.shp", "areas_geoestadisticas_estatales")
+states_df<-fortify(states)
+
+bb<- bbox(as(extent(muns), "SpatialPolygons"))
+#concat y id hacen lo mismo, se necesitan los dos?
+muns@data$concat <- paste(muns@data$CVE_ENT,muns@data$CVE_MUN, sep = "")
+muns@data$id <-as.numeric(muns@data$concat)
+#el paso más importante posiblemente,
+#unir al marco de los datos geográficos los resultados del análisis 
+#electoral
+# MunPres12 + Clave Mun usando CVUN
+DataEdo<-left_join(x = MunPres12, y = ClaveMun, by ="CVUN")
+
+DataMun<-left_join(ClaveMun,MunPres12, by = "CVUN")
+
+colnames(LINEGI)TODO<-left_join(ClaveMun,MunPres12, by = "CVUN")
+
 area.points<-fortify(area)
 area@data
+##############################hasta aquí todo bien
+list.files("Marco Geoestadistico/conjunto_de_datos/")
+
 
 
 #muns = readOGR("map/mgm2013v6_2.shp", "mgm2013v6_2") #shape
 #states_df <- fortify(states)
 #bb <- bbox(as(extent(muns) , "SpatialPolygons" ) )
 #muns@data$id = as.numeric(muns@data$concat)
-
-
-
 muns@data$id = as.numeric(muns@data$concat)
 ########meter acá la información de resultados electorales
 muns@data <- plyr::join(muns@data, MunPres12, by = "id")
