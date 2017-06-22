@@ -22,17 +22,18 @@ library("foreign")
 library("maptools")
 library("RColorBrewer")
 library("ggmap")
+library("data.table")
 #####################################################################
 #A.Descargar bases de datos, resultados a nivel Sección y casilla en .csv, 
 #####################################################################
 ###1.Datos electorales
 #datos de http://siceef.ine.mx/downloadDB.html
 ###1.1 Diputados Mayoria Relativa 2015###############################
-download.file("http://siceef.ine.mx/BD/DiputadosMR2015Seccion.csv", "DiputadosMR2015Seccion.csv")
+#download.file("http://siceef.ine.mx/BD/DiputadosMR2015Seccion.csv", "DiputadosMR2015Seccion.csv")
 #1.2.1 Presidente 2012 Casilla
-download.file("http://siceef.ine.mx/BD/Presidente2012.csv", "Presidente2012Casilla.csv")
+#download.file("http://siceef.ine.mx/BD/Presidente2012.csv", "Presidente2012Casilla.csv")
 #1.2.3 Presidente 2012 Sección
-download.file("http://siceef.ine.mx/BD/Presidente2012Seccion.csv", "Presidente2012Seccion.csv")
+#download.file("http://siceef.ine.mx/BD/Presidente2012Seccion.csv", "Presidente2012Seccion.csv")
 
 #####################################################################
 ####################Presidente 2012##################################
@@ -58,7 +59,8 @@ MunPres12 <-P2012Secc %>%
                 ID_MUNICIPIO_ELECTORAL = unique(ID_MUNICIPIO))
 
 ##############################Porcentajes##############################
-MunPres12 <- mutate(MunPres12, POR_NULOS = NUM_VOTOS_NULOS/TOTAL)
+MunPres12 <- mutate(MunPres12, POR_NULOS = NUM_VOTOS_NULOS/TOTAL, 
+                    POR_PRI_ALIANZA = (PRI +PRI_PVEM)/TOTAL)
 #Unir con el nombre de los estados
 temp<-dplyr::select(P2012Secc, ID_ESTADO, CVUN, NOMBRE_ESTADO, MUNICIPIO, ID_MUNICIPIO)
 temp<- unique(temp[complete.cases(temp),])
@@ -68,9 +70,9 @@ temp$MunMin <- tolower(x = temp$MUNICIPIO) #municipios en minúsculas, fuente dat
 #Shapefiles del Marco Geoestadístico del INEGI más reciente, Junio 2016
 ########################################################################
 #D################Datos del marco geoestadístico más reciente 
-download.file("http://internet.contenidos.inegi.org.mx/contenidos/Productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/marc_geo/702825217341_s.zip", "MarcoGeoJunioo2016.zip")
-unzip("MarcoGeoJunioo2016.zip", exdir = "Marco Geoestadistico")
-list.files("./Marco Geoestadistico/conjunto_de_datos/")
+#download.file("http://internet.contenidos.inegi.org.mx/contenidos/Productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/marc_geo/702825217341_s.zip", "MarcoGeoJunioo2016.zip")
+#unzip("MarcoGeoJunioo2016.zip", exdir = "Marco Geoestadistico")
+#list.files("./Marco Geoestadistico/conjunto_de_datos/")
 MGEOINEGI<- readShapePoly("./Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_municipales.shp")
 LINEGI <- tbl_df(MGEOINEGI@data)
 #Tenemos la clave municipal que utiliza el INEGI en su marco geoestadístico
@@ -101,63 +103,49 @@ ClaveMun$ClaveINEGI <- str_c(str_pad(ClaveMun$CVE_ENT, width =2, "left", "0"), s
 #Aqui vemos que ya tenemos forma de empatar los resultados del INEGI con los datos electorales, 
 #molesta decisión del INE no seguir con la clasificación del marcogeoestadístico nacional
 #Eso o hay algo que no entiendo
-
 #Tenemos NAs en ClaveMun$CVUN
 ClaveMun[is.na(ClaveMun$CVUN),]$CVUN<-ClaveMun[is.na(ClaveMun$CVUN),]$ClaveINEGI#69 casos, los llenamos con la clave INEGI
 #ya no hay nas!
-
-
 ############################################
 #####Mapa con datos a nivel municipal
 ############################################
-muns<- readOGR("./Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_municipales.shp", "areas_geoestadisticas_municipales")
-muns_df<-fortify(muns)
+##########Municipios
 
-states<-readOGR("Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_estatales.shp", "areas_geoestadisticas_estatales")
-states_df<-fortify(states)
+#muns<- readOGR("./Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_municipales.shp",
+               #"areas_geoestadisticas_municipales")#un archivo demasiado grande 
+muns = readOGR("map/mgm2013v6_2.shp", "mgm2013v6_2")
+states <- readOGR("map/mge2013v6_2.shp", "mge2013v6_2")
 
-bb<- bbox(as(extent(muns), "SpatialPolygons"))
-#concat y id hacen lo mismo, se necesitan los dos?
-muns@data$concat <- paste(muns@data$CVE_ENT,muns@data$CVE_MUN, sep = "")
-muns@data$id <-as.numeric(muns@data$concat)
+
+#Pegar los datos a los municipios antes de hacerles fortify
 #el paso más importante posiblemente,
 #unir al marco de los datos geográficos los resultados del análisis 
 #electoral
+
+#Tres variables para pegarlo, probablemente no haya necesidad de las tres
+#muns@data$concat <- paste(muns@data$CVE_ENT,muns@data$CVE_MUN, sep = "")
+muns@data$ClaveINEGI <- paste(muns@data$CVE_ENT,muns@data$CVE_MUN, sep = "")
+muns@data$id <-as.numeric(muns@data$concat)
+
+head(muns)
+length(unique(muns))
 # MunPres12 + Clave Mun usando CVUN
-DataEdo<-left_join(x = MunPres12, y = ClaveMun, by ="CVUN")
+DataEdo<-right_join(x = MunPres12, y = ClaveMun, by ="CVUN")
 
-DataMun<-left_join(ClaveMun,MunPres12, by = "CVUN")
-
-colnames(LINEGI)TODO<-left_join(ClaveMun,MunPres12, by = "CVUN")
-
-area.points<-fortify(area)
-area@data
-##############################hasta aquí todo bien
-list.files("Marco Geoestadistico/conjunto_de_datos/")
+#Juntamos usando clave Inegi, renombrandola a concat
+DataEdo$concat <- DataEdo$ClaveINEGI
+muns@data <- plyr::join(muns@data, DataEdo, by = "concat")
+muns_df <- fortify(muns,region = "id")
 
 
+#################################################################
+####################Estados######################################
+#################################################################
+#states<-readOGR("Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_estatales.shp", 
+                #"areas_geoestadisticas_estatales")#Este es un archivo demasiado grande
 
-#muns = readOGR("map/mgm2013v6_2.shp", "mgm2013v6_2") #shape
-#states_df <- fortify(states)
-#bb <- bbox(as(extent(muns) , "SpatialPolygons" ) )
-#muns@data$id = as.numeric(muns@data$concat)
-muns@data$id = as.numeric(muns@data$concat)
-########meter acá la información de resultados electorales
-muns@data <- plyr::join(muns@data, MunPres12, by = "id")
-muns_df <- fortify(muns,region = "concat")
-muns_df <- plyr::join(muns_df, MunPres12, by="id")
-
-
-#muns = readOGR("map/mgm2013v6_2.shp", "mgm2013v6_2") #shape
-muns = readOGR("map/mgm2013v6_2.shp", "mgm2013v6_2", encoding = "UTF-8") #shape
-states <- readOGR("map/mge2013v6_2.shp", "mge2013v6_2")
-states_df <- fortify(states)
-bb <- bbox(as(extent(muns) , "SpatialPolygons" ) )
-#muns@data$id = as.numeric(muns@data$concat)
-muns@data$id = as.numeric(muns@data$concat)
-########meter acá la información de resultados electorales
-muns@data <- plyr::join(muns@data, MunPres12, by = "id")
-muns_df <- fortify(muns,region = "concat")
+states_df<-fortify(states)
+bb<- bbox(as(extent(muns), "SpatialPolygons"))
 
 ## Theme for maps
 theme_bare <-theme(axis.line=element_blank(),
@@ -172,18 +160,24 @@ theme_bare <-theme(axis.line=element_blank(),
                    panel.grid.minor=element_blank(),
                    plot.background=element_blank())
 
-MAPA <- ggplot()+
-      geom_map(data = muns_df, map = muns_df, 
-               aes(map_id = id, x = long, y = lat, group = group, fill= POR_NULOS),
-               color = "white", size = 0.04) + geom_polygon(data = states_df,
-                   aes(long, lat, group = group),
-                   color = "#aaaaaa", fill = NA, size = 0.3) +
-      scale_fill_viridis("Porcentaje", trans = "sqrt", labels = percent) +
-      coord_map() +
-      labs(x = "", y = "", title = "")
-coord_map("albers", lat0 = bb[2,1], lat1 = bb[2,2]) +
-      theme_bw() +
-      theme(legend.key = element_rect(fill = NA)) +
-      theme_bare
+#muns_df <- fortify(muns, region = "concat")
+muns_df <- fortify(muns, region = "id")
+DataEdo$id <- DataEdo$concat
+muns_df<-plyr::join(muns_df, DataEdo, by = "id")
+colnames(muns_df)
 
-MAPA
+ggplot()+
+  geom_map(data = muns_df, map = muns_df, 
+           aes(map_id = id, x = long, y = lat, group = group, fill = POR_NULOS),
+           color = "white", size = 0.04) +
+  geom_polygon(data = states_df,
+               aes(long, lat, group = group),
+               color = "#aaaaaa", fill = NA, size = 0.3) +
+  scale_fill_viridis("Porcentaje", trans = "sqrt", labels = percent) +
+  coord_map() +
+  labs(x = "", y = "", 
+       title = "") +
+coord_map("albers", lat0 = bb[2,1], lat1 = bb[2,2]) +
+  theme_bw() +
+  theme(legend.key = element_rect(fill = NA)) +
+  theme_bare
