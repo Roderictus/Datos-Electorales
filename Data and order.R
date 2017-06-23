@@ -112,8 +112,13 @@ ClaveMun[is.na(ClaveMun$CVUN),]$CVUN<-ClaveMun[is.na(ClaveMun$CVUN),]$ClaveINEGI
 ##########Municipios
 
 #muns<- readOGR("./Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_municipales.shp",
-               #"areas_geoestadisticas_municipales")#un archivo demasiado grande 
-muns = readOGR("map/mgm2013v6_2.shp", "mgm2013v6_2")
+               "areas_geoestadisticas_municipales")#un archivo demasiado grande 
+
+muns<- readOGR("./Mapa muy reducido/areas_geoestadisticas_municipales.shp",
+               "areas_geoestadisticas_municipales")#un archivo pequeño al que le hacen falta cosas
+rm(MGEOINEGI)
+
+#muns = readOGR("map/mgm2013v6_2.shp", "mgm2013v6_2")
 states <- readOGR("map/mge2013v6_2.shp", "mge2013v6_2")
 
 
@@ -123,20 +128,19 @@ states <- readOGR("map/mge2013v6_2.shp", "mge2013v6_2")
 #electoral
 
 #Tres variables para pegarlo, probablemente no haya necesidad de las tres
-#muns@data$concat <- paste(muns@data$CVE_ENT,muns@data$CVE_MUN, sep = "")
+muns@data$concat <- paste(muns@data$CVE_ENT,muns@data$CVE_MUN, sep = "")
 muns@data$ClaveINEGI <- paste(muns@data$CVE_ENT,muns@data$CVE_MUN, sep = "")
 muns@data$id <-as.numeric(muns@data$concat)
 
-head(muns)
-length(unique(muns))
+
+
 # MunPres12 + Clave Mun usando CVUN
 DataEdo<-right_join(x = MunPres12, y = ClaveMun, by ="CVUN")
 
 #Juntamos usando clave Inegi, renombrandola a concat
 DataEdo$concat <- DataEdo$ClaveINEGI
 muns@data <- plyr::join(muns@data, DataEdo, by = "concat")
-muns_df <- fortify(muns,region = "id")
-
+head(muns_df)
 
 #################################################################
 ####################Estados######################################
@@ -165,8 +169,14 @@ muns_df <- fortify(muns, region = "id")
 DataEdo$id <- DataEdo$concat
 muns_df<-plyr::join(muns_df, DataEdo, by = "id")
 colnames(muns_df)
+#muns_df<-tbl_df(muns_df)
+#muns_df<-dplyr::select(muns_df,long, lat, order, hole, piece, id, group, CVUN, 
+#                POR_NULOS, TOTAL_VOTOS, LISTA_NOMINAL, POR_PRI_ALIANZA)
 
-ggplot()+
+gc()
+
+
+MAPA_NULOS <-ggplot() +
   geom_map(data = muns_df, map = muns_df, 
            aes(map_id = id, x = long, y = lat, group = group, fill = POR_NULOS),
            color = "white", size = 0.04) +
@@ -177,7 +187,10 @@ ggplot()+
   coord_map() +
   labs(x = "", y = "", 
        title = "") +
-coord_map("albers", lat0 = bb[2,1], lat1 = bb[2,2]) +
+  coord_map("albers", lat0 = bb[2,1], lat1 = bb[2,2]) +
   theme_bw() +
   theme(legend.key = element_rect(fill = NA)) +
   theme_bare
+
+#ggsave(filename = "Mapa1.png", plot = MAPA_NULOS, width = 10, height = 8, units = "cm")
+
