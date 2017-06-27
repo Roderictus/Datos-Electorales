@@ -61,7 +61,7 @@ Muns_Map <-fortify(muns , region = "ClaveINEGI")
 P2012Mun$id<-P2012Mun$ClaveINEGI
 
 Muns_Map<-plyr::join(Muns_Map, P2012Mun, by = "id")
-
+bb<- bbox(as(extent(muns), "SpatialPolygons"))
 #######Hasta aquí base de datos, sigue mapa
 
 
