@@ -73,7 +73,7 @@ temp$MunMin <- tolower(x = temp$MUNICIPIO) #municipios en minúsculas, fuente dat
 #download.file("http://internet.contenidos.inegi.org.mx/contenidos/Productos/prod_serv/contenidos/espanol/bvinegi/productos/geografia/marc_geo/702825217341_s.zip", "MarcoGeoJunioo2016.zip")
 #unzip("MarcoGeoJunioo2016.zip", exdir = "Marco Geoestadistico")
 #list.files("./Marco Geoestadistico/conjunto_de_datos/")
-MGEOINEGI<- readShapePoly("./Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_municipales.shp")
+MGEOINEGI<- readOGR("./Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_municipales.shp")
 LINEGI <- tbl_df(MGEOINEGI@data)
 #Tenemos la clave municipal que utiliza el INEGI en su marco geoestadístico
 #Es necesario pasarla a minúsculas y unirla a los datos electorales
@@ -119,8 +119,7 @@ muns<- readOGR("./Mapa muy reducido/areas_geoestadisticas_municipales.shp",
 rm(MGEOINEGI)
 
 #muns = readOGR("map/mgm2013v6_2.shp", "mgm2013v6_2")
-states <- readOGR("map/mge2013v6_2.shp", "mge2013v6_2")
-
+states <- readOGR("Marco Geoestadistico/MapasSimplificadas/areas_geoestadisticas_estatales.shp", "areas_geoestadisticas_estatales")
 
 #Pegar los datos a los municipios antes de hacerles fortify
 #el paso más importante posiblemente,
@@ -132,16 +131,14 @@ muns@data$concat <- paste(muns@data$CVE_ENT,muns@data$CVE_MUN, sep = "")
 muns@data$ClaveINEGI <- paste(muns@data$CVE_ENT,muns@data$CVE_MUN, sep = "")
 muns@data$id <-as.numeric(muns@data$concat)
 
-
+muns
 
 # MunPres12 + Clave Mun usando CVUN
 DataEdo<-right_join(x = MunPres12, y = ClaveMun, by ="CVUN")
 
 #Juntamos usando clave Inegi, renombrandola a concat
-DataEdo$concat <- DataEdo$ClaveINEGI
+DataEdo$concat <- DataEdo$ClaveINEGI.x
 muns@data <- plyr::join(muns@data, DataEdo, by = "concat")
-head(muns_df)
-
 #################################################################
 ####################Estados######################################
 #################################################################
@@ -165,7 +162,8 @@ theme_bare <-theme(axis.line=element_blank(),
                    plot.background=element_blank())
 
 #muns_df <- fortify(muns, region = "concat")
-muns_df <- fortify(muns, region = "id")
+muns_df <- fortify(muns)
+
 DataEdo$id <- DataEdo$concat
 muns_df<-plyr::join(muns_df, DataEdo, by = "id")
 colnames(muns_df)
