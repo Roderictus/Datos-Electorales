@@ -12,7 +12,11 @@ for (i in 11:32) {
            str_c( i), mode = "wb")
   unzip(str_c("Cartografía electoral/", i))
   file.remove(str_c(, i))
-  }
+}
+
+
+
+
 unzip(zipfile = "Cartografía electoral/10", exdir = "Cartografía electoral")
 unzip(zipfile = "Cartografía electoral/11", exdir = "Cartografía electoral")
 

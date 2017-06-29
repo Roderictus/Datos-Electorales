@@ -10,12 +10,33 @@ library(dplyr)
 library(gtable)
 library(grid)
 library(stringr)
+library(data.table)
+
+#########################################################################################################
+########################  Datos de elecciones a presidente  #############################################
+#########################################################################################################
+#Juntar los tres archivos por seccion
+P2000Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2000Seccion.csv", 
+                 sep = ",", encoding = "UTF-8")
+colnames(P2000Secc)<- paste("P2000", colnames(P2006Secc), sep = "_")
+P2006Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2006Seccion.csv", 
+                 sep = ",", encoding = "UTF-8")
+colnames(P2006Secc)<- paste("P2006", colnames(P2006Secc), sep = "_")
+P2012Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2012Seccion.csv", 
+                 sep = ",", encoding = "UTF-8")
+colnames(P2012Secc)<- paste("P2012", colnames(P2012Secc), sep = "_")
 
 
-#Datos de elecciones a presidente 
+colnames(P2000Secc)
+colnames(P2006Secc)
+colnames(P2012Secc)
+
+
 
 #download.file("http://siceef.ine.mx/BD/Presidente2000Seccion.csv", "./Elecciones/Presidente2000Seccion.csv")
-#download.file("http://siceef.ine.mx/BD/Presidente2006Seccion.csv", "./Elecciones/Presidente2006Seccion.csv")
+download.file(url = "http://siceef.ine.mx/BD/Presidente2006Seccion.csv", 
+              destfile = "./Elecciones/Presidente2006Seccion.csv",
+              method = "wb")
 #download.file("http://siceef.ine.mx/BD/Presidente2012Seccion.csv", "./Elecciones/Presidente2012Seccion.csv")
 
 ####################################################################################
@@ -69,14 +90,21 @@ ClaveMun[is.na(ClaveMun$CVUN),]$CVUN<-ClaveMun[is.na(ClaveMun$CVUN),]$ClaveINEGI
 ####################################################################################
 ###################   Presidente 2006 Sección    ###################################
 ####################################################################################
+#write.csv(x = P2006Secc, file = "Elecciones/Presidente2006Seccion.csv")
 
-P2006Secc <- read.csv("./Elecciones/Presidente2006Seccion.csv")
+P2006Secc$CVUN <- str_c(str_pad(P2006Secc$ID_ESTADO, width = 2, "left", "0"),
+                        str_pad(P2006Secc$ID_MUNICIPIO, width = 3, "left", "0"))
+#hay un ID_MUNICIPIO de 580, es voto en el extranjero, 300 de ellos
+colnames(P2006Secc)
+table(P2006Secc)
+table(P2006Secc$CVUN)
+#coalición por el bien de todos
+#Alianza por México
+#
 
 
-P2012Secc$CVUN <- str_c(str_pad(P2012Secc$ID_ESTADO, width = 2, "left", "0"),str_pad(P2012Secc$ID_MUNICIPIO, width = 3, "left", "0"))
-
-P2012Mun <-P2012Secc %>%
-  group_by(CVUN =as.factor(P2012Secc$CVUN)) %>%
+P2006Mun <-P2006Secc %>%
+  group_by(CVUN =as.factor(P2006Secc$CVUN)) %>%
   summarise(TOTAL = sum(TOTAL_VOTOS, na.rm =TRUE), PAN = sum(PAN, na.rm = TRUE), PRI = sum(PRI, na.rm = TRUE), 
             PRD = sum(PRD, na.rm = TRUE), PVEM = sum(PVEM, na.rm = TRUE), PT = sum(PT, na.rm = TRUE),
             MC = sum(MC, na.rm = TRUE), NVA_ALIANZA = sum(NVA_ALIANZA, na.rm = TRUE),
