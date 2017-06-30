@@ -1,7 +1,6 @@
 #Base de datos a nivel municipal de resultados de la votación presidencial 2012
 #con identificador de municipio original e identificador de municipio que corresponda
 #al marco geoestadístico del INEGI
-
 library(rgeos)
 library(rgdal)
 library(raster)
@@ -11,42 +10,66 @@ library(gtable)
 library(grid)
 library(stringr)
 library(data.table)
-
 #########################################################################################################
 ########################  Datos de elecciones a presidente  #############################################
 #########################################################################################################
-#Juntar los tres archivos por seccion
+#Bajar, identificador de base, llave única a nivel sección, llave única a nivel municipio
+#Agregar a nivel municipal
+##############################################################################
+#######################################  2000   ##############################
+##############################################################################
 P2000Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2000Seccion.csv", 
-                 sep = ",", encoding = "UTF-8")
-colnames(P2000Secc)<- paste("P2000", colnames(P2006Secc), sep = "_")
+                 sep = ",", encoding = "Latin-1")
+P2000Secc$CVE_SECC<-str_c(str_pad(P2000Secc$ID_ESTADO, width =2, "left", "0"),
+                          str_pad(P2000Secc$SECCION, width = 4, "left", "0"))
+P2000Secc$CV_MUN <- str_c(str_pad(P2000Secc$ID_ESTADO, width = 2, "left", "0"),
+                        str_pad(P2000Secc$ID_MUNICIPIO, width = 3, "left", "0"))
+colnames(P2000Secc)
+P2000Secc %>%
+  group_by(CVUN =as.factor(P2000Secc$CV_MUN)) %>%
+  summarise(TOTAL = sum(TOTAL_VOTOS, na.rm =TRUE), 
+            AC = sum(AC, na.rm = TRUE), 
+            PRI = sum(PRI, na.rm = TRUE), 
+            AM = sum(AM, na.rm = TRUE), 
+            PCD = sum(PCD, na.rm = TRUE), 
+            PARM = sum(PARM, na.rm = TRUE),
+            DSPPN = sum(DSPPN, na.rm = TRUE), 
+            CANCELADOS = sum(NUM_VOTOS_CAN_NREG, na.rm = TRUE),
+            NULOS = sum(NUM_VOTOS_NULOS, na.rm = TRUE),
+            Num_Secciones = length(table(P2000Secc$CVE_SECC)),
+            Municipio = unique(MUNICIPIO), 
+            ID_MUNICIPIO_ELECTORAL = unique(ID_MUNICIPIO))
+
+length(table(P2000Secc$CVE_SECC))
+
+##############################################################################
+#######################################  2006   ##############################
+##############################################################################
 P2006Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2006Seccion.csv", 
                  sep = ",", encoding = "UTF-8")
 colnames(P2006Secc)<- paste("P2006", colnames(P2006Secc), sep = "_")
+P2006Secc$CVE_SECC<-str_c(str_pad(P2006Secc$P2006_ID_ESTADO, width =2, "left", "0"),
+                          str_pad(P2006Secc$P2006_SECCION, width = 4, "left", "0"))
+P2006Secc$CV_MUN <- str_c(str_pad(P2006Secc$P2006_ID_ESTADO, width = 2, "left", "0"),
+                          str_pad(P2006Secc$P2006_ID_MUNICIPIO, width = 3, "left", "0"))
+##############################################################################
+#######################################  2012   ##############################
+##############################################################################
 P2012Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2012Seccion.csv", 
-                 sep = ",", encoding = "UTF-8")
+                 sep = ",", encoding = "Latin-1")
 colnames(P2012Secc)<- paste("P2012", colnames(P2012Secc), sep = "_")
+P2012Secc$CVE_SECC<-str_c(str_pad(P2012Secc$P2012_ID_ESTADO, width =2, "left", "0"),
+                          str_pad(P2012Secc$P2012_SECCION, width = 4, "left", "0"))
+P2012Secc$CV_MUN <- str_c(str_pad(P2012Secc$P2012_ID_ESTADO, width = 2, "left", "0"),
+                          str_pad(P2012Secc$P2012_ID_MUNICIPIO, width = 3, "left", "0"))
+length(unique(P2000Secc$CV_MUN))# 2434,2474,2447, 2006 tiene una clasificacion para voto en extranjero
+#Juntar para una base a nivel municipal 
+#en algún momento subsetear sólo para cuando existen las tres observaciones
 
-
-colnames(P2000Secc)
-colnames(P2006Secc)
-colnames(P2012Secc)
-
-
-
-#download.file("http://siceef.ine.mx/BD/Presidente2000Seccion.csv", "./Elecciones/Presidente2000Seccion.csv")
-download.file(url = "http://siceef.ine.mx/BD/Presidente2006Seccion.csv", 
-              destfile = "./Elecciones/Presidente2006Seccion.csv",
-              method = "wb")
-#download.file("http://siceef.ine.mx/BD/Presidente2012Seccion.csv", "./Elecciones/Presidente2012Seccion.csv")
 
 ####################################################################################
 ###################   Presidente 2012 Sección    ###################################
 ####################################################################################
-
-
-P2012Secc <- read.csv("Presidente2012Seccion.csv")
-P2012Secc$CVUN <- str_c(str_pad(P2012Secc$ID_ESTADO, width = 2, "left", "0"),str_pad(P2012Secc$ID_MUNICIPIO, width = 3, "left", "0"))
-
 P2012Mun <-P2012Secc %>%
   group_by(CVUN =as.factor(P2012Secc$CVUN)) %>%
   summarise(TOTAL = sum(TOTAL_VOTOS, na.rm =TRUE), PAN = sum(PAN, na.rm = TRUE), PRI = sum(PRI, na.rm = TRUE), 
