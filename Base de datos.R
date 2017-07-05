@@ -1,6 +1,6 @@
-#Base de datos a nivel municipal de resultados de la votación presidencial 2012
-#con identificador de municipio original e identificador de municipio que corresponda
-#al marco geoestadístico del INEGI
+##############################################################################
+####################################### Paqueteria  ##########################
+##############################################################################
 library(rgeos)
 library(rgdal)
 library(raster)
@@ -10,16 +10,11 @@ library(gtable)
 library(grid)
 library(stringr)
 library(data.table)
-#########################################################################################################
-########################  Datos de elecciones a presidente  #############################################
-#########################################################################################################
-#Bajar, identificador de base, llave única a nivel sección, llave única a nivel municipio
-#Agregar a nivel municipal
 ##############################################################################
-#######################################  2000   ##############################
+####################################### Presidente 2000   ####################
 ##############################################################################
 P2000Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2000Seccion.csv", 
-                 sep = ",", encoding = "Latin-1")
+                 sep = ",", encoding = "Latin-1") #No incluye la lista Nominal 
 P2000Secc$CVE_SECC<-str_c(str_pad(P2000Secc$ID_ESTADO, width =2, "left", "0"),
                           str_pad(P2000Secc$SECCION, width = 4, "left", "0"))
 P2000Secc$CV_MUN <- str_c(str_pad(P2000Secc$ID_ESTADO, width = 2, "left", "0"),
@@ -28,6 +23,7 @@ colnames(P2000Secc)
 P2000Mun<-P2000Secc %>%
   group_by(CVUN =as.factor(P2000Secc$CV_MUN)) %>%
   summarise(TOTAL = sum(TOTAL_VOTOS, na.rm =TRUE), 
+            Lista_Nominal = sum (LISTA_NOMINAL, na.rm = TRUE),
             AC = sum(AC, na.rm = TRUE), 
             PRI = sum(PRI, na.rm = TRUE), 
             AM = sum(AM, na.rm = TRUE), 
@@ -42,7 +38,7 @@ P2000Mun<-P2000Secc %>%
             ID_Municipio = unique(ID_MUNICIPIO))
 write.csv(x = P2000Mun, file = "Municipios_Presidente_2000.csv")
 ##############################################################################
-#######################################  2006   ##############################
+####################################   Presidente 2006   #####################
 ##############################################################################
 P2006Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2006Seccion.csv", 
                  sep = ",", encoding = "UTF-8")
@@ -68,7 +64,7 @@ P2006Mun<-P2006Secc %>%
             ID_Municipio  = unique(ID_MUNICIPIO))
 write.csv(x = P2006Mun, file = "Municipios_Presidente_2006.csv")
 ##############################################################################
-#######################################  2012   ##############################
+#######################################   Presidente 2012   ##################
 ##############################################################################
 P2012Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2012Seccion.csv", 
                  sep = ",", encoding = "Latin-1")
@@ -98,25 +94,57 @@ P2012Mun<-P2012Secc %>%
             Num_Casillas  = length(unique(na.omit(CASILLAS))),
             Municipio     = unique(na.omit(MUNICIPIO)), 
             ID_Municipio  = unique(ID_MUNICIPIO))
+
+P2012Mun$CVE_ENT <- str_sub(string = P2012Mun$CVUN, start = 1, end = 2)
+
+
+
+
+
 write.csv(x = P2012Mun, file = "Municipios_Presidente_2012.csv")
 length(unique(P2000Secc$CV_MUN))# 2434,2474,2447, 2006 tiene una clasificacion para voto en extranjero
+#######################################################################################################
+########################################  Catálogo Municipal  #########################################
+#######################################################################################################
+Catalogo_Municipal <- read.dbf("./cat_municipio_OCT2016.dbf") #mayor disparidad entre población femenina y masculina en el Estado
+Catalogo_Municipal$CVE_INEGI <- str_c(str_pad(Catalogo_Municipal$CVE_ENT, width = 2, "left", "0"), 
+                                      str_pad(Catalogo_Municipal$CVE_MUN, width = 3, "left", "0"))
+Catalogo_Municipal$Municipio_Minuscula<- tolower(Catalogo_Municipal$NOM_MUN)
+#length(unique(Catalogo_Municipal$CVE_INEGI))#2,458
+
+
+
+
+
+
 ########################################################################################################
 ########################################  Base Municipal  ##############################################
 ########################################################################################################
 
+########################################################################################################
+###########################################  Creación de variables   ###################################
+########################################################################################################
+colnames(P2000Mun)
+colnames(P2006Mun)
+colnames(P2012Mun)
+
+#Votos nulos, abstencionismo
+P2000Mun <- mutate(P2000Mun,
+                   P_Nulos = NULOS/TOTAL)
+P2006Mun <- mutate(P2006Mun, 
+                   P_Nulos = NULOS/TOTAL,
+                   P_Abstencion = TOTAL/Lista_Nominal)
+P2012Mun <- mutate(P2012Mun,  
+                   P_Nulos = NULOS/TOTAL,
+                   P_Abstencion = TOTAL/Lista_Nominal)
+
+#Secciones electorales en guadalajara
+#Bajar mapas de secciones electorales 
+#Votos por secciones electorales 
+
+#######Abstencionismo 
 
 
-
-
-#Analisis de votos nulos, para empezar 
-#Cambio en los votos nulos
-#Usar solamente el marco geoestadístico del INEGI 
-
-
-
-
-P2012Mun <- mutate(P2012Mun, POR_NULOS = NUM_VOTOS_NULOS/TOTAL, 
-                    POR_PRI_ALIANZA = (PRI +PRI_PVEM)/TOTAL, POR_PRD_ALIANZA = (PRD_PT+PRD_PT_MC+PRD_MC)/TOTAL)
 
 temp<-dplyr::select(P2012Secc, ID_ESTADO, CVUN, NOMBRE_ESTADO, MUNICIPIO, ID_MUNICIPIO)
 temp<- unique(temp[complete.cases(temp),])
