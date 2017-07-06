@@ -23,8 +23,9 @@ library("maptools")
 library("RColorBrewer")
 library("ggmap")
 library("data.table")
+
 #####################################################################
-#A.Descargar bases de datos, resultados a nivel Sección y casilla en .csv, 
+####### A.Descargar bases de datos, resultados a nivel Sección y casilla en .csv, 
 #####################################################################
 ###1.Datos electorales
 #datos de http://siceef.ine.mx/downloadDB.html

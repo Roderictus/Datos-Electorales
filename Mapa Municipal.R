@@ -9,8 +9,6 @@ library(grid)
 library(stringr)
 library(viridis)
 library(extrafont)
-F<-font_import(paths = "C:/Proyectos R/Fonts", recursive = TRUE)
-windowsFonts(Ubuntu = "Ubuntu-C")
 
 #####Catálogo de entidades y municipios 
 #file:///C:/Users/IN334909/Downloads/Claves%20Entidades%20Federativas%20y%20Municipios%20PEF%202012.pdf
@@ -138,8 +136,12 @@ ggplot() +
       label.hjust = 0.5
     ))
 
+############################################################################################################
+##########################################  Voto Nulo en tres periodos  ####################################
+############################################################################################################
 
-#Cambiar los colores
-#Incluir al PRD
+Estado
 
+#Lista de Estados
 
+d

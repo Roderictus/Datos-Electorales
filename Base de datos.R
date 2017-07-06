@@ -36,6 +36,7 @@ P2000Mun<-P2000Secc %>%
             Num_Secciones = length(unique(na.omit(SECCION))),
             Municipio = unique(MUNICIPIO), 
             ID_Municipio = unique(ID_MUNICIPIO))
+P2000Mun$CVE_ENT <- str_sub(string = P2000Mun$CVUN, start = 1, end = 2)
 write.csv(x = P2000Mun, file = "Municipios_Presidente_2000.csv")
 ##############################################################################
 ####################################   Presidente 2006   #####################
@@ -62,6 +63,7 @@ P2006Mun<-P2006Secc %>%
             Num_Casillas  = length(unique(na.omit(CASILLA))),
             Municipio     = unique(MUNICIPIO), 
             ID_Municipio  = unique(ID_MUNICIPIO))
+P2006Mun$CVE_ENT <- str_sub(string = P2006Mun$CVUN, start = 1, end = 2)
 write.csv(x = P2006Mun, file = "Municipios_Presidente_2006.csv")
 ##############################################################################
 #######################################   Presidente 2012   ##################
@@ -94,13 +96,7 @@ P2012Mun<-P2012Secc %>%
             Num_Casillas  = length(unique(na.omit(CASILLAS))),
             Municipio     = unique(na.omit(MUNICIPIO)), 
             ID_Municipio  = unique(ID_MUNICIPIO))
-
 P2012Mun$CVE_ENT <- str_sub(string = P2012Mun$CVUN, start = 1, end = 2)
-
-
-
-
-
 write.csv(x = P2012Mun, file = "Municipios_Presidente_2012.csv")
 length(unique(P2000Secc$CV_MUN))# 2434,2474,2447, 2006 tiene una clasificacion para voto en extranjero
 #######################################################################################################
@@ -111,6 +107,34 @@ Catalogo_Municipal$CVE_INEGI <- str_c(str_pad(Catalogo_Municipal$CVE_ENT, width 
                                       str_pad(Catalogo_Municipal$CVE_MUN, width = 3, "left", "0"))
 Catalogo_Municipal$Municipio_Minuscula<- tolower(Catalogo_Municipal$NOM_MUN)
 #length(unique(Catalogo_Municipal$CVE_INEGI))#2,458
+#Asociación entre el catálogo electoral y el del INEGI por claves de municipio
+
+
+P2012Mun$Municipio_Minuscula <- tolower(x = P2012Mun$Municipio)
+colnames(P2012Mun)
+dplyr::select(P2012Mun, CVUN, Municipio_Minuscula)
+
+MunicipiosMapa<- data.frame()
+list <-LINEGI$CVE_ENT
+
+
+
+for ( i in 1:32) {
+  A2 <- dplyr::filter(temp, temp$ID_ESTADO == i )
+  B2 <- dplyr::filter(LINEGI, LINEGI$CVE_ENT== unique(LINEGI$CVE_ENT)[i])
+  print(unique(LINEGI$CVE_ENT)[i])
+  MunicipiosMapa<-rbind(MunicipiosMapa,left_join(B2,A2, by = "MunMin")) #INEGI a la izquierda
+}
+
+
+
+
+ClaveMun<-dplyr::select(MunicipiosMapa, CVE_ENT, CVE_MUN, NOM_MUN, CVUN)
+#P2012Secc$CVUN <- str_c(str_pad(P2012Secc$ID_ESTADO, width = 2, "left", "0"),str_pad(P2012Secc$ID_MUNICIPIO, width = 3, "left", "0"))
+ClaveMun$ClaveINEGI <- str_c(str_pad(ClaveMun$CVE_ENT, width =2, "left", "0"), str_pad(ClaveMun$CVE_MUN, width = 3, "left", "0"))
+ClaveMun[is.na(ClaveMun$CVUN),]$CVUN<-ClaveMun[is.na(ClaveMun$CVUN),]$ClaveINEGI#69 casos, los llenamos con la clave INEGI
+#
+
 
 
 
