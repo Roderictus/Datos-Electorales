@@ -33,6 +33,12 @@ length(unique(Pais_Mapa$CVE_INEGI))
 Pais_Mapa$MomioMujer <-  as.numeric(Pais_Mapa$PFEM)/as.numeric(Pais_Mapa$PMAS)
 Mapa_Municipios <- filter(.data = Pais_Mapa, CVE_ENT == "15")
 summary(Mapa_Municipios$MomioMujer)
+Catalogo_Municipal$MomioMujer <- (Catalogo_Municipal$PFEM/Catalogo_Municipal$PMAS)
+################################
+######Tablas con Municipios con mayor disparidad 
+
+
+head(arrange(.data = Catalogo_Municipal, -Catalogo_Municipal$MomioMujer),10 )
 
 ####################################################################################
 ######################  Elementos específicos al mapa  #############################
