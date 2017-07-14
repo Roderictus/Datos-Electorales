@@ -137,7 +137,7 @@ ggplot() +
 
 Similarmente veamos los municipios donde la proporción de mujeres es menor (o la de hombres es mayor).
 
-```{r Tabla menos mujeres, echo=FALSE}
+```{r Tabla menos mujeres, echo=FALSE, message=FALSE}
 
 dt<-head(arrange(.data = T1, T1$"Prop. Mujeres"), 10)
 kable(dt) %>%

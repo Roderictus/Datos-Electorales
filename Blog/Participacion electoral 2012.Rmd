@@ -1,0 +1,41 @@
+---
+title: "Participación Electoral 2012 Edomex"
+author: "Rodrigo Franco"
+date: "14 de julio de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE, cache = TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+#paqueteria
+
+#Leer resultados nacionales a nivel seccion
+P2012Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2012Seccion.csv", 
+                 sep = ",", encoding = "Latin-1")
+#tomar resultados solamente para el EdoMex (15)
+filter(P2012)
+#cartografia electoral 
+Secciones <-readOGR("Cartografía electoral/15/SECCION.shp", 
+                    "SECCION")
+
+
+```
+
+Un primer mapa de algunos resultados a nivel sección electoral. 
+Posibilidad de conectarlos con los resultados del censo 2010. 
+
+
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

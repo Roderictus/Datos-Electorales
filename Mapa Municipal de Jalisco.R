@@ -18,6 +18,8 @@ Catalogo_Municipal$VTOT<- as.numeric(Catalogo_Municipal$VTOT)
 #Catalogo_Municipal[nas, ]
 Catalogo_Municipal$CVE_INEGI <- str_c(str_pad(Catalogo_Municipal$CVE_ENT, width = 2, "left", "0"), 
                                       str_pad(Catalogo_Municipal$CVE_MUN, width = 3, "left", "0"))
+sum(Catalogo_Municipal$PTOT, na.rm = TRUE)
+sum(Catalogo_Municipal$VTOT, na.rm = TRUE)
 
 #Info geográfica
 Municipios<- readOGR("./Mapa muy reducido/areas_geoestadisticas_municipales.shp",
