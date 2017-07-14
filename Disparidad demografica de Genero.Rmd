@@ -28,9 +28,6 @@ Catalogo_Municipal$VTOT<- as.numeric(Catalogo_Municipal$VTOT)
 #Catalogo_Municipal[nas, ]
 Catalogo_Municipal$CVE_INEGI <- str_c(str_pad(Catalogo_Municipal$CVE_ENT, width = 2, "left", "0"), 
                                       str_pad(Catalogo_Municipal$CVE_MUN, width = 3, "left", "0"))
-sum(Catalogo_Municipal$PTOT, na.rm = TRUE)
-sum(Catalogo_Municipal$VTOT, na.rm = TRUE)
-
 #Info geográfica
 Municipios<- readOGR("./Mapa muy reducido/areas_geoestadisticas_municipales.shp",
                "areas_geoestadisticas_municipales")
@@ -41,45 +38,212 @@ States_Map <- fortify(states)
 Pais_Mapa<-fortify(Municipios, region = "id")
 Pais_Mapa$CVE_INEGI<-Pais_Mapa$id
 Pais_Mapa<-left_join(x = Pais_Mapa, y = Catalogo_Municipal, by = "CVE_INEGI")
-length(unique(Pais_Mapa$CVE_INEGI))
-Pais_Mapa$MomioMujer <-  as.numeric(Pais_Mapa$PFEM)/as.numeric(Pais_Mapa$PMAS)
-Mapa_Municipios <- filter(.data = Pais_Mapa, CVE_ENT == "15")
-summary(Mapa_Municipios$MomioMujer)
 Catalogo_Municipal$MomioMujer <- (Catalogo_Municipal$PFEM/Catalogo_Municipal$PMAS)
+Pais_Mapa$MomioMujer <-  Pais_Mapa$PFEM/Pais_Mapa$PMAS
 ```
 
 ## De regreso a los mapas
 
 Encontré este Catálogo Municipal <http://geoweb.inegi.org.mx/mgn2k/catalogo.jsp> con fecha de corte a octubre de 2016, los datos de población que muestra (112 millones de habitantes) me parece corresponden a los resultados del censo 2010, así que no están muy actualizados.
 Sin embargo, este post es una excusa para mostrar algo y empezar a calentar motores para análisis electoral a nivel municipal y sección electoral, lo que mostraré probablemente, después.
-Sirva esto como rápido ejercicio para hacer unos cuantos mapas, en este caso de una dinámica demográfica particular, aquellos municipios con mayor disparidad en la proporción entre hombres y mujeres. 
+Sirva esto como rápido ejercicio para hacer unos cuantos mapas, en este caso de una dinámica demográfica particular que probablemente no haya cambiado mucho o sirva de base para estudiar cambios posteriores, la de aquellos municipios con mayor disparidad en la proporción entre hombres y mujeres. 
 El indicador es sencillo he dividido la cantidad de mujeres reportada en el archivo entre el número de hombres, muestro los 10 municipios con mayor proporción de mujeres aquí: 
 
 ```{r Municipios con más mujeres, echo = FALSE, message = FALSE}
-T1< select(Catalogo_Municipal, NOM_ENT, NOM_MUN, PTOT, PMAS, PFEM, MomioMujer)
+T1<- select(Catalogo_Municipal, NOM_ENT, NOM_MUN, PTOT, PMAS, PFEM, MomioMujer)
 colnames(T1)<- c("Estado", "Municipio", "Población", "Hombres", "Mujeres", "Prop. Mujeres" )
-
-dt<-head(arrange(.data = Catalogo_Municipal, -Catalogo_Municipal$MomioMujer),10 )
+dt<-head(arrange(.data = T1, -T1$"Prop. Mujeres"), 10)
 kable(dt) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
+## Mapa de Municipios en Oaxaca y su proporción entre hombres y mujeres
+Curiosamente estos 10 municipios  todos ellos se concentran en el Estado de Oaxaca. Veamos un mapa que nos represente estas proporciones.
 
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://geoweb.inegi.org.mx/mgn2k/catalogo.jsp>.
+```{r Mapa Mujeres Oaxaca, echo = FALSE}
+Mapa_Municipios <- filter(.data = Pais_Mapa, CVE_ENT == "20") # Oaxaca
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+#Tema del mapa
+theme_map <- function(...) {
+  theme_minimal() +
+    theme(
+      text = element_text(family = "sans", color = "#22211d"),
+      axis.line = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      # panel.grid.minor = element_line(color = "#ebebe5", size = 0.2),
+      panel.grid.major = element_line(color = "#ebebe5", size = 0.2),
+      panel.grid.minor = element_blank(),
+      plot.background = element_rect(fill = "#f5f5f2", color = NA), 
+      panel.background = element_rect(fill = "#f5f5f2", color = NA), 
+      legend.background = element_rect(fill = "#f5f5f2", color = NA),
+      panel.border = element_blank(),
+      ...
+    )
+}
 
-```{r cars}
-summary(cars)
+#Clases discretas
+
+no_classes <- 6
+labels <- c()
+quantiles <-quantile(Mapa_Municipios$MomioMujer,
+                     probs = seq(0,1,length.out = no_classes + 1 ))
+labels <- c()
+for(idx in 1:length(quantiles)) {
+  labels<-c(labels, paste0(round(quantiles[idx],2),
+                           "-",
+                           round(quantiles[idx + 1],2)))
+}
+
+labels <- labels[1:length(labels)-1]
+Mapa_Municipios$MomioMujer_cuantil <- cut(Mapa_Municipios$MomioMujer,
+                                          breaks = quantiles, 
+                                          labels = labels, 
+                                          include.lowest = T)
+ggplot() +
+  geom_polygon(data = Mapa_Municipios, aes(fill = MomioMujer_cuantil, 
+                                           x = long,
+                                           y = lat, 
+                                           group = group)) +
+  geom_path(data = Mapa_Municipios, aes( x = long, 
+                                         y = lat, 
+                                         group = group),
+            color = "white", size = 0.2) +
+  coord_equal() +
+  theme_map() +
+  labs( x = NULL, 
+        y = NULL, NULL,
+        title = "Proporción entre mujeres y hombres en municipios \n                                  de Oaxaca") +
+  theme(legend.position = "bottom") +
+  scale_fill_viridis(
+    option = "viridis",
+    name = "Proporción Mujeres/ Hombres",
+    discrete = T,
+    direction = -1,
+    guide = guide_legend(
+      keyheight = unit(5, units = "mm"),
+      title.position = 'top',
+      reverse = T
+    ))
+  
+
 ```
 
-## Including Plots
+## Menor proporción de mujeres 
 
-You can also embed plots, for example:
+Similarmente veamos los municipios donde la proporción de mujeres es menor (o la de hombres es mayor).
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r Tabla menos mujeres, echo=FALSE}
+
+dt<-head(arrange(.data = T1, T1$"Prop. Mujeres"), 10)
+kable(dt) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Sonora y Chihuahua son los estados con municipios con menor proporción de hombres y mayor proporción de Mujeres 
+
+
+```{r Mapa menos mujeres, echo=FALSE, message = FALSE}
+Mapa_Chihuahua <- filter(.data = Pais_Mapa, CVE_ENT == "08") # Chihuahua
+
+#Clases discretas
+
+no_classes <- 6
+labels <- c()
+quantiles <-quantile(Mapa_Chihuahua$MomioMujer,
+                     probs = seq(0,1,length.out = no_classes + 1 ))
+labels <- c()
+for(idx in 1:length(quantiles)) {
+  labels<-c(labels, paste0(round(quantiles[idx],2),
+                           "-",
+                           round(quantiles[idx + 1],2)))
+}
+
+labels <- labels[1:length(labels)-1]
+Mapa_Chihuahua$MomioMujer_cuantil <- cut(Mapa_Chihuahua$MomioMujer,
+                                          breaks = quantiles, 
+                                          labels = labels, 
+                                          include.lowest = T)
+ggplot() +
+  geom_polygon(data = Mapa_Chihuahua, aes(fill = MomioMujer_cuantil, 
+                                           x = long,
+                                           y = lat, 
+                                           group = group)) +
+  geom_path(data = Mapa_Chihuahua, aes( x = long, 
+                                         y = lat, 
+                                         group = group),
+            color = "white", size = 0.2) +
+  coord_equal() +
+  theme_map() +
+  labs( x = NULL, 
+        y = NULL, NULL,
+        title = "Proporción entre mujeres y hombres \n en municipios de Chihuahua") +
+  theme(legend.position = "bottom") +
+  scale_fill_viridis(
+    option = "viridis",
+    name = "Proporción Mujeres/ Hombres",
+    discrete = T,
+    direction = -1,
+    guide = guide_legend(
+      keyheight = unit(5, units = "mm"),
+      title.position = 'top',
+      reverse = T
+    ))
+
+Mapa_Sonora <- filter(.data = Pais_Mapa, CVE_ENT == "26") # Sonora
+
+#Clases discretas
+
+no_classes <- 6
+labels <- c()
+quantiles <-quantile(Mapa_Sonora$MomioMujer,
+                     probs = seq(0,1,length.out = no_classes + 1 ))
+labels <- c()
+for(idx in 1:length(quantiles)) {
+  labels<-c(labels, paste0(round(quantiles[idx],2),
+                           "-",
+                           round(quantiles[idx + 1],2)))
+}
+
+labels <- labels[1:length(labels)-1]
+Mapa_Sonora$MomioMujer_cuantil <- cut(Mapa_Sonora$MomioMujer,
+                                          breaks = quantiles, 
+                                          labels = labels, 
+                                          include.lowest = T)
+ggplot() +
+  geom_polygon(data = Mapa_Sonora, aes(fill = MomioMujer_cuantil, 
+                                           x = long,
+                                           y = lat, 
+                                           group = group)) +
+  geom_path(data = Mapa_Sonora, aes( x = long, 
+                                         y = lat, 
+                                         group = group),
+            color = "white", size = 0.2) +
+  coord_equal() +
+  theme_map() +
+  labs( x = NULL, 
+        y = NULL, NULL,
+        title = "Proporción entre mujeres y hombres \n en municipios de Sonora") +
+  theme(legend.position = "bottom") +
+  scale_fill_viridis(
+    option = "viridis",
+    name = "Proporción Mujeres/ Hombres",
+    discrete = T,
+    direction = -1,
+    guide = guide_legend(
+      keyheight = unit(5, units = "mm"),
+      title.position = 'top',
+      reverse = T
+    ))
+```
+
+Una de mis escenas favoritas del padrino es cuando Mickey, en el exilio Siciliano pasea por la campiña y los pueblos, nota la ausencia de hombres jovenes, su guardaespaldas comenta que han muerto en las vendettas. 
+
+Cada uno de estos municipios en el extremo tiene una Historia, no necesariamente violenta, que debe ser interesante y convendría explorar.  
+
+El Código está disponible en la página de Github de Roderictus. Buena parte del proceso de los mapas fue tomada de <https://timogrossenbacher.ch/2016/12/beautiful-thematic-maps-with-ggplot2-only>, el shapefile y metadatos de México del Marco Geoestadístico más reciente y después bajado de resolución en esta joyita de página: <http://mapshaper.org>.
