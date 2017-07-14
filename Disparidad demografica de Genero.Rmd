@@ -1,0 +1,85 @@
+---
+title: "Disparidad demográfica de género en México"
+author: "Rodrigo Franco"
+date: "13 de julio de 2017"
+output: html_document
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+library(rgeos)
+library(rgdal)
+library(dplyr)
+library(foreign)
+library(ggplot2)
+library(stringr)
+library(viridis)
+library(knitr)
+library(kableExtra)
+
+Catalogo_Municipal <- read.dbf("./cat_municipio_OCT2016.dbf",as.is = TRUE) #mayor disparidad entre población femenina y masculina en el Estado
+Catalogo_Municipal$PTOT<- as.numeric(Catalogo_Municipal$PTOT)
+Catalogo_Municipal$PMAS<- as.numeric(Catalogo_Municipal$PMAS)
+Catalogo_Municipal$PFEM<- as.numeric(Catalogo_Municipal$PFEM)
+Catalogo_Municipal$VTOT<- as.numeric(Catalogo_Municipal$VTOT)
+#Dos municipios nuevos que aparecen sin población, Bacalar y Puerto Morelos, los dos son municipios nuevos
+#nas<-is.na(as.numeric(as.character(Catalogo_Municipal$PTOT)))
+#Catalogo_Municipal[nas, ]
+Catalogo_Municipal$CVE_INEGI <- str_c(str_pad(Catalogo_Municipal$CVE_ENT, width = 2, "left", "0"), 
+                                      str_pad(Catalogo_Municipal$CVE_MUN, width = 3, "left", "0"))
+sum(Catalogo_Municipal$PTOT, na.rm = TRUE)
+sum(Catalogo_Municipal$VTOT, na.rm = TRUE)
+
+#Info geográfica
+Municipios<- readOGR("./Mapa muy reducido/areas_geoestadisticas_municipales.shp",
+               "areas_geoestadisticas_municipales")
+Municipios@data$CVE_INEGI <- str_c(Municipios@data$CVE_ENT, Municipios@data$CVE_MUN)
+Municipios@data$id <- Municipios@data$CVE_INEGI
+states <- readOGR("Marco Geoestadistico/conjunto_de_datos/areas_geoestadisticas_estatales.shp", "areas_geoestadisticas_estatales")
+States_Map <- fortify(states)
+Pais_Mapa<-fortify(Municipios, region = "id")
+Pais_Mapa$CVE_INEGI<-Pais_Mapa$id
+Pais_Mapa<-left_join(x = Pais_Mapa, y = Catalogo_Municipal, by = "CVE_INEGI")
+length(unique(Pais_Mapa$CVE_INEGI))
+Pais_Mapa$MomioMujer <-  as.numeric(Pais_Mapa$PFEM)/as.numeric(Pais_Mapa$PMAS)
+Mapa_Municipios <- filter(.data = Pais_Mapa, CVE_ENT == "15")
+summary(Mapa_Municipios$MomioMujer)
+Catalogo_Municipal$MomioMujer <- (Catalogo_Municipal$PFEM/Catalogo_Municipal$PMAS)
+```
+
+## De regreso a los mapas
+
+Encontré este Catálogo Municipal <http://geoweb.inegi.org.mx/mgn2k/catalogo.jsp> con fecha de corte a octubre de 2016, los datos de población que muestra (112 millones de habitantes) me parece corresponden a los resultados del censo 2010, así que no están muy actualizados.
+Sin embargo, este post es una excusa para mostrar algo y empezar a calentar motores para análisis electoral a nivel municipal y sección electoral, lo que mostraré probablemente, después.
+Sirva esto como rápido ejercicio para hacer unos cuantos mapas, en este caso de una dinámica demográfica particular, aquellos municipios con mayor disparidad en la proporción entre hombres y mujeres. 
+El indicador es sencillo he dividido la cantidad de mujeres reportada en el archivo entre el número de hombres, muestro los 10 municipios con mayor proporción de mujeres aquí: 
+
+```{r Municipios con más mujeres, echo = FALSE, message = FALSE}
+T1< select(Catalogo_Municipal, NOM_ENT, NOM_MUN, PTOT, PMAS, PFEM, MomioMujer)
+colnames(T1)<- c("Estado", "Municipio", "Población", "Hombres", "Mujeres", "Prop. Mujeres" )
+
+dt<-head(arrange(.data = Catalogo_Municipal, -Catalogo_Municipal$MomioMujer),10 )
+kable(dt) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://geoweb.inegi.org.mx/mgn2k/catalogo.jsp>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
