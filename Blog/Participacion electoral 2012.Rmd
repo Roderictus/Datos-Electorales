@@ -1,33 +1,134 @@
 ---
 title: "Participación Electoral 2012 Edomex"
 author: "Rodrigo Franco"
-date: "14 de julio de 2017"
+date: "18 de julio de 2017"
 output: html_document
 ---
 
 ```{r setup, include=FALSE, cache = TRUE}
 knitr::opts_chunk$set(echo = TRUE)
-#paqueteria
-
-#Leer resultados nacionales a nivel seccion
-P2012Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2012Seccion.csv", 
+############  paqueteria  #############
+library(dplyr)
+#library(rgeos)
+library(rgdal)
+#library(raster)
+library(ggplot2)
+#library(gtable)
+#library(grid)
+library(stringr)
+library(data.table)
+#####################################
+P2012Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2012Seccion.csv", #Leer resultados nacionales a nivel seccion
                  sep = ",", encoding = "Latin-1")
-#tomar resultados solamente para el EdoMex (15)
-filter(P2012)
-#cartografia electoral 
-Secciones <-readOGR("Cartografía electoral/15/SECCION.shp", 
-                    "SECCION")
-Secciones@data
+P2012Secc$CVE_SECC<-str_c(str_pad(P2012Secc$ID_ESTADO, width =2, "left", "0"),
+                          str_pad(P2012Secc$SECCION, width = 4, "left", "0"))
+P2012SeccEdo<- filter(P2012Secc, ID_ESTADO == 15)#6390 #tomar resultados solamente para el EdoMex (15)
+#cartografia electoral
+Secciones <-readOGR("C:/Proyectos R/Datos-Electorales/Cartografía electoral/15/SECCION.shp", 
+                    "SECCION") #6459
+Secciones$CVE_SECC<-str_c(str_pad(Secciones$entidad, width =2, "left", "0"),
+                          str_pad(Secciones$seccion, width = 4, "left", "0"))
+Secciones_Map <- fortify(Secciones, 
+                         region = "CVE_SECC")
+Secciones_Map$CVE_SECC <- Secciones_Map$id
+Secciones_Map<-left_join(x = Secciones_Map, y = P2012SeccEdo, by = "CVE_SECC")
+Secciones_Map$Por_PRI <-  ((Secciones_Map$PRI + Secciones_Map$PRI_PVEM)/(Secciones_Map$TOTAL_VOTOS-Secciones_Map$NUM_VOTOS_NULOS))*100
+Secciones_Map[is.na(Secciones_Map$Por_PRI),]$Por_PRI <- median(Secciones_Map$Por_PRI,na.rm = TRUE)
+
+summarise(Seccions_Map$Por_PRI)
 
 ```
 
+Una cosa agradable de como estoy armando esto es que cada vez es más facilmente reproducible el código, en esta ocasión los datos electorales son leidos directamente del repositorio del INE y la presentación está armada en knitr. Los shapefiles de las secciones aún no los descarga directamente el código, pero podría ser una implementación para la próxima vez. En todo caso pueden bajar el código para descargar los shapefiles de mi Github. 
+
+Tengo 114 secciones para los cuales no tengo valor, les adjudico (salvajemente) el valor de la mediana de la votación, lo que es, por ahora, una forma de enfrentarme al problema de adjudicarles valores. Hay varias formas de hacerlo mejor una de ellas que convendría experimentar es sacar un promedio ponderado de los vecinos, pero por ahora es un problema menor. 
+
+Tabla con las secciones con mayor votación.
+
+Tabla con las secciones con menor votación.  
+
+
+Un par de cosas bonitas
+Un par de cosas feas.
+Gran parte del problema con incorporar variables del censo 2010 con este mapa es por l
 Un primer mapa de algunos resultados a nivel sección electoral. 
 Posibilidad de conectarlos con los resultados del censo 2010. 
 
 
 
-```{r cars}
-summary(cars)
+```{r mapa, include=FALSE, cache = TRUE}
+
+################  Temática del mapa #############################
+theme_map <- function(...) {
+  theme_minimal() +
+    theme(
+      text = element_text(family = "sans", color = "#22211d"),
+      axis.line = element_blank(),
+      axis.text.x = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks = element_blank(),
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank(),
+      # panel.grid.minor = element_line(color = "#ebebe5", size = 0.2),
+      panel.grid.major = element_line(color = "#ebebe5", size = 0.2),
+      panel.grid.minor = element_blank(),
+      plot.background = element_rect(fill = "#f5f5f2", color = NA), 
+      panel.background = element_rect(fill = "#f5f5f2", color = NA), 
+      legend.background = element_rect(fill = "#f5f5f2", color = NA),
+      panel.border = element_blank(),
+      ...
+    )
+}
+
+####################### Clases discretas ###################################
+
+#https://timogrossenbacher.ch/2016/12/beautiful-thematic-maps-with-ggplot2-only/
+no_classes <- 6
+labels <- c()
+quantiles <-quantile(Secciones_Map$Por_PRI,
+                     probs = seq(0,1,length.out = no_classes + 1 ))
+labels <- c()
+for(idx in 1:length(quantiles)) {
+  labels<-c(labels, paste0(round(quantiles[idx],2),
+                           "-",
+                           round(quantiles[idx + 1],2)))
+}
+labels <- labels[1:length(labels)-1]
+Secciones_Map$Por_PRI_cuantil <- cut(Secciones_Map$Por_PRI,
+                                          breaks = quantiles, 
+                                          labels = labels, 
+                                          include.lowest = T)
+####################  Mapa  ##################################################
+ggplot() +
+  geom_polygon(data = Secciones_Map, aes(fill = Por_PRI_cuantil, 
+                                           x = long,
+                                           y = lat, 
+                                           group = group)) +
+  geom_path(data = Secciones_Map, aes( x = long, 
+                                         y = lat, 
+                                         group = group),
+            color = "white", size = 0.2) +
+  coord_equal() +
+  theme_map() +
+  labs( x = NULL, 
+        y = NULL, NULL,
+        title = "Porcentaje de votos obtenidos por PRI y PRI_PVEM en Secciones \n Electorales del Estado de México 2012") +
+  theme(legend.position = "bottom") +
+  scale_fill_viridis(
+    option = "viridis",
+    name = "Porcentaje Votos PRI 2012",
+    discrete = T,
+    direction = -1,
+    guide = guide_legend(
+      keyheight = unit(5, units = "mm"),
+      title.position = 'top',
+      reverse = T
+    ))
+
+
+
+
+
 ```
 
 ## Including Plots
