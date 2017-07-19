@@ -17,7 +17,7 @@ filter(P2012)
 #cartografia electoral 
 Secciones <-readOGR("Cartografía electoral/15/SECCION.shp", 
                     "SECCION")
-
+Secciones@data
 
 ```
 
