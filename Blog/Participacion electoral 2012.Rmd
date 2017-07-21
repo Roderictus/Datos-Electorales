@@ -1,7 +1,7 @@
 ---
-title: "Participación Electoral 2012 Edomex"
+title: "Votos por el PRI en el 2012 Edomex"
 author: "Rodrigo Franco"
-date: "18 de julio de 2017"
+date: "20 de julio de 2017"
 output: html_document
 ---
 
@@ -15,8 +15,12 @@ library(rgdal)
 library(ggplot2)
 #library(gtable)
 #library(grid)
+library(viridis)
 library(stringr)
 library(data.table)
+library(knitr)
+library(kableExtra)
+
 #####################################
 P2012Secc<-fread(input = "http://siceef.ine.mx/BD/Presidente2012Seccion.csv", #Leer resultados nacionales a nivel seccion
                  sep = ",", encoding = "Latin-1")
@@ -35,28 +39,13 @@ Secciones_Map<-left_join(x = Secciones_Map, y = P2012SeccEdo, by = "CVE_SECC")
 Secciones_Map$Por_PRI <-  ((Secciones_Map$PRI + Secciones_Map$PRI_PVEM)/(Secciones_Map$TOTAL_VOTOS-Secciones_Map$NUM_VOTOS_NULOS))*100
 Secciones_Map[is.na(Secciones_Map$Por_PRI),]$Por_PRI <- median(Secciones_Map$Por_PRI,na.rm = TRUE)
 
-summarise(Seccions_Map$Por_PRI)
-
 ```
 
 Una cosa agradable de como estoy armando esto es que cada vez es más facilmente reproducible el código, en esta ocasión los datos electorales son leidos directamente del repositorio del INE y la presentación está armada en knitr. Los shapefiles de las secciones aún no los descarga directamente el código, pero podría ser una implementación para la próxima vez. En todo caso pueden bajar el código para descargar los shapefiles de mi Github. 
 
-Tengo 114 secciones para los cuales no tengo valor, les adjudico (salvajemente) el valor de la mediana de la votación, lo que es, por ahora, una forma de enfrentarme al problema de adjudicarles valores. Hay varias formas de hacerlo mejor una de ellas que convendría experimentar es sacar un promedio ponderado de los vecinos, pero por ahora es un problema menor. 
+Tengo 114 secciones (de alrededor de 6400, falta menos del 2%) para los cuales no tengo valor, les adjudico (salvajemente) el valor de la mediana de la votación, lo que es, por ahora, una forma de enfrentarme al problema de adjudicarles valores. Hay varias formas de hacerlo mejor una de ellas que convendría experimentar es sacar un promedio ponderado de los vecinos, pero por ahora es un problema menor. El voto es respecto a la votación efectiva es decir que resto al total los votos nulos. 
 
-Tabla con las secciones con mayor votación.
-
-Tabla con las secciones con menor votación.  
-
-
-Un par de cosas bonitas
-Un par de cosas feas.
-Gran parte del problema con incorporar variables del censo 2010 con este mapa es por l
-Un primer mapa de algunos resultados a nivel sección electoral. 
-Posibilidad de conectarlos con los resultados del censo 2010. 
-
-
-
-```{r mapa, include=FALSE, cache = TRUE}
+```{r mapa, echo = FALSE, cache = TRUE,width=15,fig.height=11}
 
 ################  Temática del mapa #############################
 theme_map <- function(...) {
@@ -116,7 +105,7 @@ ggplot() +
   theme(legend.position = "bottom") +
   scale_fill_viridis(
     option = "viridis",
-    name = "Porcentaje Votos PRI 2012",
+    name = "Porcentaje Votos PRI en Alianza 2012",
     discrete = T,
     direction = -1,
     guide = guide_legend(
@@ -125,18 +114,73 @@ ggplot() +
       reverse = T
     ))
 
+```
 
+Las secciones blancuzcas son lugares con alta densidad urbana, lo que implica un alto número de de secciones electorales y no se alcanza a distinguir por lo que convendrá separarlo por municipio para ver como se comporta la votación. 
 
+Se aprecian clusters y divisiones, además de que le queda bien la gama de color, pero hay zonas con pocas casillas y otras, con muchas, necesitamos hacer varios mapas para dividir las zonas más urbanas buscando detalle. 
 
+Veamos algunas tablas con extremos.
+
+Secciones donde arrasa el PRI, 
+```{r Secciones electorales con menos votos , echo=FALSE, cache = TRUE, message=FALSE}
+P2012Secc$Por_PRI <- ((P2012Secc$PRI + P2012Secc$PRI_PVEM)/(P2012Secc$TOTAL_VOTOS-P2012Secc$NUM_VOTOS_NULOS))*100
+T1<- select(P2012Secc, CABECERA_DISTRITAL, MUNICIPIO, SECCION, PRI, PRI_PVEM, Por_PRI, TOTAL_VOTOS)
+#colnames(T1)<- c("Estado", "Municipio", "Población", "Hombres", "Mujeres", "Prop. Mujeres" )
+dt<-head(arrange(.data = T1, -T1$Por_PRI), 15)
+kable(dt, digits = 2) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
 
 ```
 
-## Including Plots
+Secciones donde obtiene menos votos 
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r Secciones electorales con más votos , echo=FALSE, cache = TRUE, message= FALSE}
+dt<-head(arrange(.data = T1, T1$Por_PRI), 15)
+kable(dt, digits = 2, longtable = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), digits = 2)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Son muy pocos votos como para ser relevantes pero siempre es interesante ver los extremos y ubicarlos, podemos suponer que hay alguna maquinaria electoral interesante en Badiraguato. Y que algo interesante sucede en el Municipio de Heroica Ciudad de Tlaxiaco y Tlapa.
+
+Veamos los resultados a nivel municipal para los 125 municipios. 
+
+```{r Porcentaje Municipio , echo = FALSE, cache = TRUE, message= FALSE}
+
+P2012SeccEdo$CV_MUN <- str_c(str_pad(P2012SeccEdo$ID_ESTADO, width = 2, "left", "0"),
+                          str_pad(P2012SeccEdo$ID_MUNICIPIO, width = 3, "left", "0"))
+
+P2012MunEdo<-P2012SeccEdo %>%
+  group_by(CVUN =as.factor(P2012SeccEdo$CV_MUN)) %>%
+  summarise(TOTAL = sum(TOTAL_VOTOS, na.rm =TRUE),
+            Lista_Nominal = sum (LISTA_NOMINAL, na.rm = TRUE),
+            PAN  = sum(PAN, na.rm = TRUE),
+            PRI  = sum(PRI, na.rm = TRUE),
+            PRD  = sum(PRD, na.rm = TRUE),
+            PVEM = sum(PVEM, na.rm = TRUE),
+            PT   = sum(PT, na.rm = TRUE),
+            MC   = sum(MC, na.rm = TRUE),
+            NVA_ALIANZA   = sum(NVA_ALIANZA, na.rm = TRUE),
+            PRI_PVEM      = sum(PRI_PVEM, na.rm = TRUE),
+            PRD_PT_MC     = sum(PRD_PT_MC, na.rm = TRUE),
+            PRD_PT        = sum(PRD_PT, na.rm = TRUE),
+            PRD_MC        = sum(PRD_MC, na.rm = TRUE),
+            PT_MC         = sum(PT_MC, na.rm = TRUE),
+            CANCELADOS    = sum(NUM_VOTOS_CAN_NREG, na.rm = TRUE),
+            NULOS         = sum(NUM_VOTOS_NULOS, na.rm = TRUE),
+            Num_Secciones = length(unique(na.omit(SECCION))),
+            Num_Casillas  = length(unique(na.omit(CASILLAS))),
+            Municipio     = unique(na.omit(MUNICIPIO)), 
+            ID_Municipio  = unique(ID_MUNICIPIO))
+
+P2012MunEdo$Porcentaje_PRI_PVEM <- ((P2012MunEdo$PRI + P2012MunEdo$PRI_PVEM)/(P2012MunEdo$TOTAL-P2012MunEdo$NULOS))*100
+P2012MunEdo$Porcentaje_PAN  <- ((P2012MunEdo$PAN)/(P2012MunEdo$TOTAL-P2012MunEdo$NULOS)) *100
+P2012MunEdo$Porcentaje_PRD_PT_MC  <- ((P2012MunEdo$PRD + P2012MunEdo$PRD_PT_MC + P2012MunEdo$PRD_PT + P2012MunEdo$PRD_MC)/(P2012MunEdo$TOTAL-P2012MunEdo$NULOS)) *100
+T2<- select(P2012MunEdo, Municipio, Num_Secciones, TOTAL, Porcentaje_PRI_PVEM, Porcentaje_PAN, Porcentaje_PRD_PT_MC)
+dt2<-arrange(.data = T2, -T2$Porcentaje_PRI_PVEM)
+colnames(dt2)<- c("Municipio", "N.Secciones","Total","P.PRI_PVEM","P.PAN","P.PRD_PT_MC")
+kable(dt2, digits = 2, longtable = TRUE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+Estos mapas se pueden imprimir a cualquier resolución, cosa de exportarlos al tamaño adecuado. ¿A quien se le antoja un mapa gigante de algún estado-partido-variable?
