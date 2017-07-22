@@ -78,8 +78,7 @@ for (i in 1:1) {
                                                    include.lowest = T)
   ####################  Mapa  ##################################################
   
-  Plot_Mun <- ggplot() +
-    geom_polygon(data = Secciones_Map_Municipio, aes(fill = Por_Participacion, 
+  Plot_Municipio <- ggplot() + geom_polygon(data = Secciones_Map_Municipio, aes(fill = Por_Participacion, 
                                                      x = long,
                                                      y = lat, 
                                                      group = group)) +
@@ -103,9 +102,10 @@ for (i in 1:1) {
         title.position = 'top',
         reverse = T
       ))
-  Archivo <-str_c("C:/Proyectos R/Datos-Electorales/Mapas Nuevos/Secciones Municipales/15/", Nombre_Municipio, ".png")
-  ggsave(filename = Archivo, plot = Plot_Mun, device = "jpg" ,plot = last_plot())
-  list.files()
   
+  Archivo <-str_c("C:/Proyectos R/Datos-Electorales/Mapas Nuevos/Secciones Municipales/15/Participacion Electoral/", Nombre_Municipio, ".png")
+  class(Plot_Municipio)
+  
+  ggsave(filename = Archivo,  device = "jpg" ,plot = last_plot())
 }
 
